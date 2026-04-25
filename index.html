@@ -2,82 +2,103 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>مصحح التلاوة الذكي</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المصحح الذكي الاحترافي</title>
     <style>
-        body { font-family: 'Arial', sans-serif; text-align: center; background-color: #f4f4f4; }
-        .quran-container { background: white; padding: 20px; margin: 50px auto; width: 80%; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        .ayah { font-size: 24px; margin: 10px; display: inline-block; transition: 0.3s; }
-        .hidden-text { color: transparent !important; text-shadow: 0 0 5px rgba(0,0,0,0); } /* إخفاء النص مع ترك مكانه */
-        .wrong { color: red !important; text-shadow: none !important; }
-        .correct { color: green !important; text-shadow: none !important; }
-        .mic-btn { font-size: 50px; cursor: pointer; border: none; background: none; color: #27ae60; }
-        .number { color: #27ae60; font-weight: bold; margin-left: 5px; }
+        :root {
+            --primary: #2ecc71;
+            --error: #e74c3c;
+            --text: #2c3e50;
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; padding: 20px; }
+        .app-card { max-width: 700px; margin: auto; background: white; border-radius: 20px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .quran-display { font-size: 28px; line-height: 2; margin-bottom: 30px; min-height: 100px; text-align: center; }
+        .word { display: inline-block; margin: 0 4px; transition: all 0.3s; color: #95a5a6; } /* افتراضي: باهت قبل القراءة */
+        .correct { color: var(--primary); font-weight: bold; }
+        .wrong { color: var(--error); font-weight: bold; text-decoration: underline; }
+        .current { border-bottom: 3px solid var(--primary); color: var(--text); }
+        
+        .controls { text-align: center; margin-top: 20px; }
+        .mic-btn { width: 80px; height: 80px; border-radius: 50%; border: none; background: var(--primary); color: white; font-size: 30px; cursor: pointer; box-shadow: 0 5px 15px rgba(46, 204, 113, 0.4); }
+        .mic-btn.active { animation: pulse 1.5s infinite; background: var(--error); }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(231, 76, 60, 0); }
+            100% { transform: scale(1); }
+        }
     </style>
 </head>
 <body>
 
-<div class="quran-container">
-    <h2>سورة الفاتحة</h2>
-    <hr>
-    <div id="quran-text">
+<div class="app-card">
+    <div class="quran-display" id="quranDisplay">
         </div>
-    <br><br>
-    <button class="mic-btn" id="start-btn">🎤</button>
-    <p id="status">اضغط على الميكروفون وابدأ القراءة...</p>
-    <button onclick="toggleVisibility()">إخفاء/إظهار النص</button>
+    
+    <div class="controls">
+        <button id="startBtn" class="mic-btn">🎤</button>
+        <p id="info">اضغط للمسح والبدء بالتصحيح اللحظي</p>
+    </div>
 </div>
 
 <script>
-    // النص الأصلي للمقارنة
-    const surahFatiha = [
-        "بسم الله الرحمن الرحيم",
-        "الحمد لله رب العالمين",
-        "الرحمن الرحيم",
-        "مالك يوم الدين"
-    ];
-
-    const container = document.getElementById('quran-text');
+    // النص المرجعي (يمكنك جلب السور من API القرآن لاحقاً)
+    const originalAyah = "الحمد لله رب العالمين الرحمن الرحيم مالك يوم الدين";
+    const wordsArray = originalAyah.split(" ");
+    const displayElement = document.getElementById('quranDisplay');
     
-    // توليد واجهة الآيات
-    surahFatiha.forEach((text, index) => {
-        container.innerHTML += `<span class="ayah hidden-text" id="ayah-${index}">${text} <span class="number">{${index + 1}}</span></span>`;
+    // بناء الواجهة: كل كلمة في عنصر منفصل
+    wordsArray.forEach((word, index) => {
+        displayElement.innerHTML += `<span id="word-${index}" class="word">${word}</span>`;
     });
 
-    function toggleVisibility() {
-        document.querySelectorAll('.ayah').forEach(el => el.classList.toggle('hidden-text'));
-    }
-
-    // إعدادات التعرف على الصوت
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
+    let currentWordIndex = 0;
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
     recognition.lang = 'ar-SA';
-    recognition.continuous = true;
     recognition.interimResults = true;
+    recognition.continuous = true;
 
-    document.getElementById('start-btn').onclick = () => {
-        recognition.start();
-        document.getElementById('status').innerText = "جاري الاستماع...";
+    document.getElementById('startBtn').onclick = function() {
+        if (this.classList.contains('active')) {
+            recognition.stop();
+            this.classList.remove('active');
+        } else {
+            recognition.start();
+            this.classList.add('active');
+            currentWordIndex = 0;
+            resetColors();
+        }
     };
 
     recognition.onresult = (event) => {
-        let transcript = event.results[event.results.length - 1][0].transcript.trim();
-        console.log("الكلمة المسموعة:", transcript);
+        let lastTranscript = event.results[event.results.length - 1][0].transcript.trim().split(" ");
+        let heardWord = lastTranscript[lastTranscript.length - 1]; // أخذ آخر كلمة نطقها المستخدم
 
-        // منطق بسيط للمقارنة (يمكن تطويره باستخدام مكتبات String Similarity)
-        surahFatiha.forEach((original, index) => {
-            let ayahElement = document.getElementById(`ayah-${index}`);
-            if (transcript.includes(original)) {
-                ayahElement.classList.remove('hidden-text', 'wrong');
-                ayahElement.classList.add('correct');
-            } else if (isMistake(transcript, original)) {
-                ayahElement.classList.add('wrong');
-            }
-        });
+        compareWord(heardWord);
     };
 
-    function isMistake(heard, original) {
-        // هنا تضع منطق اكتشاف الخطأ (مثلاً إذا كانت الكلمة تشبه الآية لكنها ليست هي)
-        return false; 
+    function compareWord(heard) {
+        if (currentWordIndex >= wordsArray.length) return;
+
+        let targetWord = wordsArray[currentWordIndex];
+        let element = document.getElementById(`word-${currentWordIndex}`);
+
+        // تنظيف الكلمات من التشكيل للمقارنة بدقة (المنطق الأساسي للذكاء الاصطناعي)
+        let cleanHeard = heard.replace(/[\u064B-\u065F]/g, "");
+        let cleanTarget = targetWord.replace(/[\u064B-\u065F]/g, "");
+
+        if (cleanHeard === cleanTarget) {
+            element.className = 'word correct';
+            currentWordIndex++;
+        } else {
+            // إذا كانت الكلمة مختلفة، يتم تلوينها بالأحمر
+            element.className = 'word wrong';
+            // ننتظر الكلمة التالية ليصحح نفسه
+        }
+    }
+
+    function resetColors() {
+        document.querySelectorAll('.word').forEach(el => el.className = 'word');
     }
 </script>
 </body>
