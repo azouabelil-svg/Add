@@ -2,132 +2,126 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Amiri&family=Tajawal:wght@500;700&display=swap');
-        body { font-family: 'Tajawal', sans-serif; background: #fff; color: #000; margin: 0; }
-        .quran-container { font-family: 'Amiri', serif; line-height: 2.8; text-align: center; color: #000; padding: 20px; }
-        .v-hide { filter: blur(15px); opacity: 0.1; display: inline-block; margin: 5px; transition: 0.5s; }
+        body { font-family: sans-serif; background: #fff; }
+        .quran-text { font-size: 1.8rem; line-height: 2.5; text-align: center; color: #000; padding: 20px; }
+        .v-hide { filter: blur(10px); opacity: 0.1; }
         .v-show { filter: blur(0); opacity: 1; font-weight: bold; }
         /* الألوان المطلوبة */
-        .word-black { color: #000000 !important; font-weight: bold; }
-        .word-red { color: #ff0000 !important; font-weight: bold; text-decoration: underline; }
-        .star-separator { color: #059669; font-weight: bold; margin: 0 5px; }
-        .mic-active { animation: pulse 1.2s infinite; background: #dc2626 !important; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        #live { color: #000000; font-size: 1.5rem; font-weight: bold; }
+        .error { color: #ff0000 !important; text-decoration: underline; }
     </style>
 </head>
-<body class="flex flex-col h-screen overflow-hidden">
+<body class="flex flex-col h-screen">
 
-    <header class="p-4 bg-white border-b flex justify-between items-center z-50">
-        <button onclick="document.getElementById('menu').classList.remove('hidden')" class="text-emerald-700 text-2xl"><i class="fas fa-bars"></i></button>
-        <h1 id="sName" class="font-bold text-emerald-800">مصحح التلاوة</h1>
-        <div class="w-8"></div>
-    </header>
-
-    <div class="bg-gray-50 border-b p-4 min-h-[100px] flex items-center justify-center">
-        <div id="dictationArea" class="text-center text-2xl font-bold">
-            <span class="text-gray-300">ابدأ القراءة...</span>
-        </div>
+    <div class="h-1/4 bg-gray-100 flex items-center justify-center border-b p-4">
+        <div id="live">تحدث الآن.. سأكتب كل ما تقوله هنا</div>
     </div>
 
-    <main id="qBox" class="flex-1 overflow-y-auto quran-container text-3xl">
-        <p class="text-gray-300">اختر سورة من القائمة</p>
-    </main>
+    <div id="qBox" class="flex-1 overflow-y-auto quran-text">
+        اضغط القائمة لاختيار سورة
+    </div>
 
-    <footer class="p-6 border-t bg-white flex justify-center items-center gap-16">
-        <button onclick="controlAll('show')" class="text-gray-400 text-2xl"><i class="fas fa-eye"></i></button>
-        <button id="micBtn" class="w-20 h-20 bg-emerald-600 rounded-full text-white text-3xl shadow-2xl flex items-center justify-center">
-            <i id="micIcon" class="fas fa-microphone"></i>
-        </button>
-        <button onclick="controlAll('hide')" class="text-gray-400 text-2xl"><i class="fas fa-eye-slash"></i></button>
-    </footer>
+    <div class="p-6 bg-white border-t flex justify-around items-center">
+        <button onclick="showMenu()" class="p-4 bg-emerald-100 rounded-full text-emerald-700">القائمة</button>
+        <button id="micBtn" class="w-20 h-20 bg-emerald-600 rounded-full text-white text-3xl shadow-lg">🎤</button>
+        <button onclick="location.reload()" class="p-4 bg-gray-100 rounded-full text-gray-600">تحديث</button>
+    </div>
 
-    <div id="menu" class="fixed inset-0 bg-black/60 hidden z-[100] backdrop-blur-sm">
-        <div class="absolute bottom-0 w-full h-3/4 bg-white rounded-t-3xl p-6 overflow-y-auto">
-            <div id="sList" class="space-y-1"></div>
+    <div id="menu" class="fixed inset-0 bg-black/50 hidden z-50 flex items-end">
+        <div class="bg-white w-full h-3/4 rounded-t-3xl p-6 overflow-y-auto">
+            <h2 class="text-xl font-bold mb-4">اختر سورة</h2>
+            <div id="sList"></div>
         </div>
     </div>
 
     <script>
-        let ayahs = []; let index = 0; let rec; let isOn = false;
+        let ayahs = [];
+        let index = 0;
+        let isListening = false;
 
-        if ('webkitSpeechRecognition' in window) {
-            rec = new webkitSpeechRecognition();
-            rec.lang = 'ar-SA'; rec.continuous = true; rec.interimResults = true;
+        // 1. تعريف الميكروفون
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'ar-SA';
+        recognition.continuous = true;
+        recognition.interimResults = true;
 
-            rec.onstart = () => { isOn = true; document.getElementById('micBtn').classList.add('mic-active'); };
-            rec.onend = () => { if(isOn) rec.start(); };
+        // 2. ماذا يحدث عند الكلام
+        recognition.onresult = (event) => {
+            let transcript = "";
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                transcript += event.results[i][0].transcript;
+            }
 
-            rec.onresult = (e) => {
-                let live = "";
-                for (let i = e.resultIndex; i < e.results.length; i++) {
-                    live += e.results[i][0].transcript;
-                }
-                
-                const area = document.getElementById('dictationArea');
-                
-                // تنظيف النصوص للمقارنة فقط
-                const clean = (t) => t.replace(/[\u064B-\u065F]/g, "").replace(/[إأآا]/g, "ا").replace(/ة/g, "ه").trim();
-                
-                if (ayahs[index]) {
-                    const target = clean(ayahs[index].text);
-                    const heard = clean(live);
+            // إظهار الكلام فوراً بالأسود
+            const liveDisplay = document.getElementById('live');
+            liveDisplay.innerHTML = transcript;
+            liveDisplay.classList.remove('error');
 
-                    // عرض الكلام بالأسود فوراً
-                    area.innerHTML = `<span class="word-black">${live}</span>`;
+            // تنظيف النص للمقارنة
+            const clean = (t) => t.replace(/[\u064B-\u065F]/g, "").replace(/[إأآا]/g, "ا").trim();
+            
+            if (ayahs[index]) {
+                const targetText = clean(ayahs[index].text);
+                const userText = clean(transcript);
 
-                    // إذا نطق جزء من الآية صح، يفتح الآية
-                    if (target.includes(heard) && heard.length > 2) {
-                        if (heard.length > target.length * 0.4) {
-                            document.getElementById(`v-${index}`).className = "v-show";
-                            index++;
-                        }
-                    } 
-                    // إذا بدأ الكلام يبتعد عن نص الآية، يلون بالأحمر
-                    else if (heard.length > 5) {
-                        area.innerHTML = `<span class="word-red">${live}</span>`;
+                if (targetText.includes(userText) && userText.length > 2) {
+                    // إذا كان الكلام صحيحاً ووصل لنصف الآية تقريباً
+                    if (userText.length > targetText.length * 0.4) {
+                        document.getElementById(`v-${index}`).className = "v-show";
+                        index++;
                     }
+                } else if (userText.length > 5) {
+                    // إذا كان الكلام خاطئاً لونه بالأحمر
+                    liveDisplay.classList.add('error');
                 }
-            };
-        }
+            }
+        };
 
-        async function init() {
+        recognition.onend = () => { if(isListening) recognition.start(); };
+
+        document.getElementById('micBtn').onclick = () => {
+            if (!isListening) {
+                isListening = true;
+                recognition.start();
+                document.getElementById('micBtn').style.backgroundColor = "red";
+            } else {
+                isListening = false;
+                recognition.stop();
+                document.getElementById('micBtn').style.backgroundColor = "#059669";
+            }
+        };
+
+        // 3. جلب البيانات
+        async function getSurahs() {
             const r = await fetch('https://api.alquran.cloud/v1/surah');
             const d = await r.json();
-            const l = document.getElementById('sList');
+            const list = document.getElementById('sList');
             d.data.forEach(s => {
                 const div = document.createElement('div');
                 div.className = "p-4 border-b active:bg-gray-100";
-                div.onclick = () => loadSurah(s.number, s.name);
                 div.innerHTML = s.name;
-                l.appendChild(div);
+                div.onclick = () => loadSurah(s.number, s.name);
+                list.appendChild(div);
             });
         }
 
-        async function loadSurah(n, name) {
-            document.getElementById('sName').innerText = name;
+        async function loadSurah(num, name) {
             document.getElementById('menu').classList.add('hidden');
-            const r = await fetch(`https://api.alquran.cloud/v1/surah/${n}`);
+            const r = await fetch(`https://api.alquran.cloud/v1/surah/${num}`);
             const d = await r.json();
-            ayahs = d.data.ayahs; index = 0;
+            ayahs = d.data.ayahs;
+            index = 0;
             document.getElementById('qBox').innerHTML = ayahs.map((a, i) => 
-                `<span id="v-${i}" class="v-hide">${a.text} <span class="star-separator"> ﴿${a.numberInSurah}﴾ </span></span>`
-            ).join('');
+                `<span id="v-${i}" class="v-hide">${a.text} (﴿${a.numberInSurah}﴾)</span>`
+            ).join(' ');
         }
 
-        function controlAll(t) {
-            ayahs.forEach((_, i) => document.getElementById(`v-${i}`).className = t === 'show' ? 'v-show' : 'v-hide');
-            if(t === 'hide') index = 0;
-        }
-
-        document.getElementById('micBtn').onclick = () => {
-            if(!isOn) rec.start(); else { isOn = false; rec.stop(); document.getElementById('micBtn').classList.remove('mic-active'); }
-        };
-
-        window.onload = init;
+        function showMenu() { document.getElementById('menu').classList.remove('hidden'); }
+        window.onload = getSurahs;
     </script>
 </body>
-    </html>
+</html>
