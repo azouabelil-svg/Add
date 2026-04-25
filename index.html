@@ -7,35 +7,43 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Amiri&family=Tajawal:wght@500;700&display=swap');
-        body { font-family: 'Tajawal', sans-serif; background: #fdfdfd; margin: 0; overflow: hidden; }
-        .quran-container { font-family: 'Amiri', serif; line-height: 2.8; text-align: center; padding: 25px; height: 70vh; overflow-y: auto; }
-        .q-word { display: inline-block; margin: 0 4px; font-size: 2rem; color: #eee; filter: blur(6px); transition: 0.4s; }
-        .revealed { color: #000 !important; filter: blur(0) !important; font-weight: bold; }
-        .ayah-num { color: #10b981; font-size: 0.7em; margin: 0 5px; }
-        .footer-controls { height: 30vh; background: #fff; border-top: 1px solid #eee; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; }
-        #live-status { font-size: 1.1rem; color: #059669; font-weight: bold; min-height: 1.5rem; }
+        body { font-family: 'Tajawal', sans-serif; background: #fff; margin: 0; overflow: hidden; }
+        .quran-container { font-family: 'Amiri', serif; line-height: 3.2; text-align: center; padding: 30px; height: 75vh; overflow-y: auto; }
+        
+        /* تصميم الكلمة المخفية */
+        .q-word { display: inline-block; margin: 0 5px; font-size: 2.2rem; color: #f0f0f0; filter: blur(8px); transition: all 0.4s; position: relative; border-bottom: 2px solid transparent; }
+        
+        /* تصميم الكلمة عند ظهورها صحيحة */
+        .revealed { color: #000 !important; filter: blur(0) !important; font-weight: bold; border-bottom: none; }
+        
+        /* تصميم الكلمة عند الخطأ (تظهر فوق الكلمة المخفية) */
+        .wrong-hit { color: #ef4444 !important; filter: blur(0) !important; border-bottom: 2px solid #ef4444; animation: shake 0.3s; }
+        
+        .ayah-num { color: #10b981; font-size: 0.8em; margin: 0 10px; font-family: sans-serif; }
+        
+        .footer-controls { height: 25vh; background: #fff; border-top: 1px solid #eee; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 15px; }
         .mic-btn { width: 85px; height: 85px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; cursor: pointer; transition: 0.3s; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
         .mic-on { background: #ef4444; color: #fff; animation: pulse 1.5s infinite; }
         .mic-off { background: #10b981; color: #fff; }
-        @keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { transform: scale(1); } }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
     </style>
 </head>
 <body class="flex flex-col h-screen">
 
-    <header class="p-4 bg-white border-b flex justify-between items-center shadow-sm">
+    <header class="p-4 bg-white border-b flex justify-between items-center">
         <button onclick="document.getElementById('menu').classList.remove('hidden')" class="text-emerald-700 text-2xl"><i class="fas fa-bars"></i></button>
-        <h1 id="sName" class="font-bold text-emerald-800">اختبر حفظك</h1>
+        <h1 id="sName" class="font-bold text-emerald-800">تطبيق المصحح</h1>
         <div class="w-8"></div>
     </header>
 
     <main id="qBox" class="quran-container">
-        <p class="text-gray-300 mt-20">اختر سورة وابدأ التسميع</p>
+        <p class="text-gray-300 mt-20">اختر سورة وابدأ التسميع المباشر</p>
     </main>
 
     <footer class="footer-controls">
-        <div id="live-status">بانتظار صوتك...</div>
-        
-        <div class="flex items-center gap-14">
+        <div id="live-text" class="text-gray-400 italic h-6 text-sm">تكلم ليتم ملء الآيات...</div>
+        <div class="flex items-center gap-12">
             <button onclick="controlAll('show')" class="text-gray-300 text-xl"><i class="fas fa-eye"></i></button>
             <button id="micBtn" class="mic-btn mic-off"><i class="fas fa-microphone"></i></button>
             <button onclick="controlAll('hide')" class="text-gray-300 text-xl"><i class="fas fa-eye-slash"></i></button>
@@ -43,7 +51,7 @@
     </footer>
 
     <div id="menu" class="fixed inset-0 bg-black/60 hidden z-[100] flex items-end">
-        <div class="bg-white w-full h-3/4 rounded-t-3xl p-6 overflow-y-auto">
+        <div class="bg-white w-full h-3/4 rounded-t-3xl p-6 overflow-y-auto shadow-2xl">
             <h2 class="text-xl font-bold mb-4 border-b pb-2">فهرس السور</h2>
             <div id="sList" class="space-y-1"></div>
         </div>
@@ -63,28 +71,41 @@
             rec.onresult = (e) => {
                 let live = "";
                 for (let i = e.resultIndex; i < e.results.length; i++) {
-                    live += e.results[i][0].transcript;
+                    live = e.results[i][0].transcript.trim();
                 }
                 
-                // عرض الكلام فوراً في الأسفل
-                document.getElementById('live-status').innerText = live;
-
-                // معالجة الكلمات ومقارنتها
+                document.getElementById('live-text').innerText = live;
                 const wordsHeard = clean(live).split(" ");
-                wordsHeard.forEach(w => {
-                    if (aWords[cWord] && clean(aWords[cWord]) === w) {
-                        document.getElementById(`w-${cAyah}-${cWord}`).classList.add('revealed');
-                        cWord++;
-                    }
-                });
+                const lastWord = wordsHeard[wordsHeard.length - 1];
 
+                if (aWords[cWord]) {
+                    const targetClean = clean(aWords[cWord]);
+                    const currentSpan = document.getElementById(`w-${cAyah}-${cWord}`);
+
+                    if (targetClean === lastWord) {
+                        // إذا كانت الكلمة صحيحة، اظهرها فوراً في مكانها
+                        currentSpan.classList.remove('wrong-hit');
+                        currentSpan.classList.add('revealed');
+                        cWord++;
+                        
+                        // التمرير التلقائي ليبقى القارئ في المنتصف
+                        currentSpan.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    } else if (lastWord.length >= targetClean.length && targetClean !== lastWord) {
+                        // إذا أخطأ، لون الكلمة المخفية بالأحمر مؤقتاً
+                        currentSpan.classList.add('wrong-hit');
+                    }
+                }
+
+                // الانتقال للآية التالية
                 if (cWord >= aWords.length && ayahs[cAyah + 1]) {
                     cAyah++; cWord = 0; aWords = ayahs[cAyah].text.split(" ");
                 }
             };
         }
 
-        const clean = (t) => t.replace(/[\u064B-\u065F]/g, "").replace(/[إأآا]/g, "ا").replace(/ة/g, "ه").trim();
+        function clean(t) {
+            return t.replace(/[\u064B-\u065F]/g, "").replace(/[إأآا]/g, "ا").replace(/ة/g, "ه").trim();
+        }
 
         async function init() {
             const r = await fetch('https://api.alquran.cloud/v1/surah');
@@ -92,7 +113,7 @@
             const list = document.getElementById('sList');
             d.data.forEach(s => {
                 const div = document.createElement('div');
-                div.className = "p-4 border-b active:bg-gray-100";
+                div.className = "p-4 border-b active:bg-gray-100 rounded-lg";
                 div.onclick = () => load(s.number, s.name);
                 div.innerHTML = s.name;
                 list.appendChild(div);
@@ -108,8 +129,8 @@
             aWords = ayahs[0].text.split(" ");
             
             document.getElementById('qBox').innerHTML = ayahs.map((a, ai) => {
-                const words = a.text.split(" ").map((w, wi) => `<span id="w-${ai}-${wi}" class="q-word">${w}</span>`).join(" ");
-                return `${words} <span class="ayah-num">﴿${a.numberInSurah}﴾</span>`;
+                const words = a.text.split(" ").map((w, wi) => `<span id="w-${ai}-${wi}" class="q-word">${w}</span>`).join("");
+                return `<span>${words} <span class="ayah-num">﴿${a.numberInSurah}﴾</span></span>`;
             }).join(" ");
         }
 
