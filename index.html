@@ -3,139 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مصحح التلاوة العالمي - إصدار المحترفين</title>
+    <title>مصحح التلاوة الذكي</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
-        
-        :root { --primary: #00a884; --bg: #f0f2f5; --dark: #111b21; }
-        
-        body { font-family: 'Amiri', serif; background: var(--bg); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        :root { --primary: #128c7e; --text: #2d3748; }
+        body { font-family: 'Amiri', serif; background: #fff; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
-        header { background: white; padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; justify-content: center; gap: 10px; z-index: 10; }
-        
-        select { padding: 10px; border-radius: 12px; border: 1px solid #ddd; font-family: 'Amiri'; font-size: 18px; outline: none; width: 80%; }
+        header { padding: 10px; background: #fff; text-align: center; border-bottom: 1px solid #eee; }
+        select { width: 90%; padding: 10px; border-radius: 12px; border: 2px solid #eee; font-size: 18px; font-family: 'Amiri'; outline: none; }
 
-        /* منطقة عرض المصحف - تدعم التمرير لصفحات كاملة */
-        #quran-viewport { 
-            flex: 1; overflow-y: auto; padding: 30px; margin: 15px;
-            background: white; border-radius: 25px; box-shadow: 0 5px 20px rgba(0,0,0,0.05);
-            font-size: 32px; line-height: 2.5; text-align: center; color: #7f8c8d;
+        #quran-area { 
+            flex: 1; overflow-y: auto; padding: 25px; text-align: center;
+            font-size: 32px; line-height: 2.6; color: #cbd5e0;
         }
 
-        .word { display: inline-block; margin: 0 4px; transition: 0.3s ease; cursor: default; }
-        .hidden-mode { color: transparent !important; text-shadow: 0 0 10px rgba(0,0,0,0.08); }
-        .correct { color: var(--primary) !important; font-weight: bold; text-shadow: none !important; }
-        .wrong { color: #e74c3c !important; text-decoration: underline; text-shadow: none !important; }
+        .word { display: inline-block; margin: 0 4px; transition: 0.1s; }
+        .ayah-num { color: var(--primary); font-size: 20px; margin: 0 8px; font-weight: bold; vertical-align: middle; }
+        .hidden-v { color: rgba(0,0,0,0.02) !important; }
+        .correct { color: var(--primary) !important; font-weight: bold; }
 
-        /* شريط الأدوات السفلي */
-        .bottom-bar { background: white; padding: 20px; display: flex; justify-content: space-evenly; align-items: center; border-top-left-radius: 30px; border-top-right-radius: 30px; box-shadow: 0 -5px 15px rgba(0,0,0,0.05); }
-        
-        .action-btn { background: #f0f2f5; border: none; width: 60px; height: 60px; border-radius: 50%; font-size: 24px; cursor: pointer; transition: 0.3s; }
-        .action-btn.active { background: #e8f5f2; color: var(--primary); }
-        
-        .mic-main { width: 85px; height: 85px; background: var(--primary); color: white; border: none; border-radius: 50%; font-size: 35px; cursor: pointer; box-shadow: 0 8px 20px rgba(0, 168, 132, 0.4); }
-        .recording { background: #ea4335; animation: ripple 1.5s infinite; }
+        .footer { 
+            background: #fff; padding: 15px; display: flex; justify-content: space-around; 
+            align-items: center; border-top: 1px solid #eee; 
+        }
 
-        @keyframes ripple { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
+        .btn { border: none; background: #f8f9fa; width: 55px; height: 55px; border-radius: 50%; font-size: 22px; cursor: pointer; }
+        .mic-main { width: 75px; height: 75px; background: var(--primary); color: white; font-size: 30px; box-shadow: 0 8px 20px rgba(18, 140, 126, 0.3); }
+        .rec-active { background: #ff4757; animation: blink 1.2s infinite; }
+
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
 
 <header>
-    <select id="surahPicker">
-        <option value="">-- اختر السورة --</option>
-    </select>
+    <select id="surahSelect"><option>تحميل السور...</option></select>
 </header>
 
-<div id="quran-viewport">
-    <p id="mainText">يرجى اختيار سورة من الأعلى لبدء التلاوة والتصحيح...</p>
-</div>
+<div id="quran-area">اختر سورة لبدء التسميع...</div>
 
-<div class="bottom-bar">
-    <button class="action-btn" id="eyeToggle" title="إخفاء/إظهار">👁️</button>
-    <button class="mic-main" id="micBtn">🎤</button>
-    <button class="action-btn" id="resetBtn" onclick="location.reload()">🔄</button>
+<div class="footer">
+    <button class="btn" id="refresh" onclick="location.reload()">🔄</button>
+    <button class="btn mic-main" id="mic">🎤</button>
+    <button class="btn" id="eye">👁️</button>
 </div>
 
 <script>
-    const surahPicker = document.getElementById('surahPicker');
-    const mainText = document.getElementById('mainText');
-    const micBtn = document.getElementById('micBtn');
-    const eyeToggle = document.getElementById('eyeToggle');
-    let wordsData = [];
+    const surahSelect = document.getElementById('surahSelect');
+    const quranArea = document.getElementById('quran-area');
+    const micBtn = document.getElementById('mic');
+    const eyeBtn = document.getElementById('eye');
+    let wordsDB = [];
 
-    // جلب السور من API القرآن الكريم
-    async function loadSurahs() {
-        const res = await fetch('https://api.alquran.cloud/v1/surah');
-        const data = await res.json();
-        data.data.forEach(s => {
-            let opt = document.createElement('option');
-            opt.value = s.number;
-            opt.text = `${s.number}. ${s.name}`;
-            surahPicker.add(opt);
+    // جلب قائمة السور
+    fetch('https://api.alquran.cloud/v1/surah').then(r => r.json()).then(d => {
+        surahSelect.innerHTML = '<option value="">-- اختر السورة --</option>' + 
+            d.data.map(s => `<option value="${s.number}">${s.number}. ${s.name}</option>`).join("");
+    });
+
+    // عند تغيير السورة
+    surahSelect.onchange = async () => {
+        if(!surahSelect.value) return;
+        quranArea.innerHTML = "جاري جلب الآيات...";
+        const r = await fetch(`https://api.alquran.cloud/v1/surah/${surahSelect.value}`);
+        const d = await r.json();
+        
+        quranArea.innerHTML = "";
+        wordsDB = [];
+        d.data.ayahs.forEach(ayah => {
+            const ayahWords = ayah.text.split(/\s+/);
+            ayahWords.forEach(w => {
+                const span = document.createElement('span');
+                span.className = 'word';
+                span.innerText = w;
+                span.id = `w-${wordsDB.length}`;
+                quranArea.appendChild(span);
+                wordsDB.push(w);
+            });
+            const n = document.createElement('span');
+            n.className = 'ayah-num';
+            n.innerText = `﴿${ayah.numberInSurah}﴾`;
+            quranArea.appendChild(n);
         });
-    }
-    loadSurahs();
-
-    // عند اختيار سورة
-    surahPicker.onchange = async () => {
-        if(!surahPicker.value) return;
-        mainText.innerHTML = "جاري جلب السورة من المصحف...";
-        const res = await fetch(`https://api.alquran.cloud/v1/surah/${surahPicker.value}`);
-        const data = await res.json();
-        const fullText = data.data.ayahs.map(a => a.text).join(" ");
-        wordsData = fullText.split(/\s+/);
-        renderQuran();
     };
 
-    function renderQuran() {
-        mainText.innerHTML = wordsData.map((w, i) => `<span id="w-${i}" class="word">${w}</span>`).join("");
-    }
-
-    // ميزة الإخفاء (العين)
-    eyeToggle.onclick = () => {
-        eyeToggle.classList.toggle('active');
-        document.querySelectorAll('.word').forEach(w => w.classList.toggle('hidden-mode'));
+    eyeBtn.onclick = () => {
+        eyeBtn.style.background = eyeBtn.style.background === 'rgb(230, 255, 250)' ? '#f8f9fa' : '#e6fffa';
+        document.querySelectorAll('.word').forEach(w => w.classList.toggle('hidden-v'));
     };
 
-    // نظام التعرف على الصوت (Speech-to-Text)
-    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (Recognition) {
-        const rec = new Recognition();
+    // نظام التعرف اللحظي
+    const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (Speech) {
+        const rec = new Speech();
         rec.lang = 'ar-SA';
         rec.continuous = true;
-        rec.interimResults = true;
+        rec.interimResults = true; // يجعل الاستجابة فورية جداً
 
         micBtn.onclick = () => {
-            if (micBtn.classList.contains('recording')) {
-                rec.stop();
-                micBtn.classList.remove('recording');
-            } else {
-                rec.start();
-                micBtn.classList.add('recording');
-            }
+            if(micBtn.classList.contains('rec-active')) { rec.stop(); micBtn.classList.remove('rec-active'); }
+            else { rec.start(); micBtn.classList.add('rec-active'); }
         };
 
         rec.onresult = (event) => {
-            let transcript = "";
+            let heard = "";
             for (let i = event.resultIndex; i < event.results.length; i++) {
-                transcript += event.results[i][0].transcript;
+                heard += event.results[i][0].transcript;
             }
-            analyze(transcript.trim());
-        };
-
-        function analyze(spokenText) {
-            wordsData.forEach((orig, index) => {
-                const el = document.getElementById(`w-${index}`);
-                // إزالة التشكيل للمقارنة الذكية
+            
+            const cleanHeard = heard.replace(/[\u064B-\u065F]/g, "");
+            wordsDB.forEach((orig, i) => {
+                const el = document.getElementById(`w-${i}`);
                 const cleanOrig = orig.replace(/[\u064B-\u065F]/g, "");
-                
-                if (spokenText.includes(cleanOrig)) {
+                if (cleanHeard.includes(cleanOrig)) {
                     el.classList.add('correct');
-                    el.classList.remove('hidden-mode', 'wrong');
+                    el.classList.remove('hidden-v');
                 }
             });
-        }
+        };
     }
 </script>
 </body>
