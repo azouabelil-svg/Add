@@ -3,103 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>المصحح الذكي الاحترافي</title>
+    <title>مصحح التلاوة الذكي - الإصدار الاحترافي</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/diff_match_patch/20121111/diff_match_patch.js"></script>
     <style>
         :root {
-            --primary: #2ecc71;
-            --error: #e74c3c;
-            --text: #2c3e50;
+            --primary-color: #27ae60;
+            --error-color: #e74c3c;
+            --bg-color: #f8f9fa;
         }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; padding: 20px; }
-        .app-card { max-width: 700px; margin: auto; background: white; border-radius: 20px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        .quran-display { font-size: 28px; line-height: 2; margin-bottom: 30px; min-height: 100px; text-align: center; }
-        .word { display: inline-block; margin: 0 4px; transition: all 0.3s; color: #95a5a6; } /* افتراضي: باهت قبل القراءة */
-        .correct { color: var(--primary); font-weight: bold; }
-        .wrong { color: var(--error); font-weight: bold; text-decoration: underline; }
-        .current { border-bottom: 3px solid var(--primary); color: var(--text); }
+        body { font-family: 'Amiri', serif; background-color: var(--bg-color); text-align: center; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 15px; shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .quran-text { font-size: 32px; line-height: 2.5; margin-bottom: 20px; color: #7f8c8d; }
+        .word { transition: all 0.3s ease; padding: 2px 4px; border-radius: 5px; }
+        .correct { color: var(--primary-color); font-weight: bold; }
+        .wrong { color: var(--error-color); background: rgba(231, 76, 60, 0.1); text-decoration: line-through; }
+        .active-word { border-bottom: 3px solid var(--primary-color); color: #2c3e50; }
         
-        .controls { text-align: center; margin-top: 20px; }
-        .mic-btn { width: 80px; height: 80px; border-radius: 50%; border: none; background: var(--primary); color: white; font-size: 30px; cursor: pointer; box-shadow: 0 5px 15px rgba(46, 204, 113, 0.4); }
-        .mic-btn.active { animation: pulse 1.5s infinite; background: var(--error); }
-        
-        @keyframes pulse {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
-            70% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(231, 76, 60, 0); }
-            100% { transform: scale(1); }
+        .mic-btn { 
+            width: 70px; height: 70px; border-radius: 50%; border: none; 
+            background: var(--primary-color); color: white; font-size: 28px; 
+            cursor: pointer; transition: 0.3s; margin-top: 20px;
         }
+        .recording { background: var(--error-color); animation: pulse 1.2s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
     </style>
 </head>
 <body>
 
-<div class="app-card">
-    <div class="quran-display" id="quranDisplay">
+<div class="container">
+    <div id="display" class="quran-text">
         </div>
     
-    <div class="controls">
-        <button id="startBtn" class="mic-btn">🎤</button>
-        <p id="info">اضغط للمسح والبدء بالتصحيح اللحظي</p>
-    </div>
+    <button id="micBtn" class="mic-btn">🎤</button>
+    <p id="status">اضغط وابدأ التلاوة</p>
 </div>
 
 <script>
-    // النص المرجعي (يمكنك جلب السور من API القرآن لاحقاً)
-    const originalAyah = "الحمد لله رب العالمين الرحمن الرحيم مالك يوم الدين";
-    const wordsArray = originalAyah.split(" ");
-    const displayElement = document.getElementById('quranDisplay');
+    // النص الأصلي (يمكنك استبداله بأي سورة)
+    const originalText = "الحمد لله رب العالمين الرحمن الرحيم مالك يوم الدين إياك نعبد وإياك نستعين";
+    const targetWords = originalText.split(" ");
+    const dmp = new diff_match_patch();
     
-    // بناء الواجهة: كل كلمة في عنصر منفصل
-    wordsArray.forEach((word, index) => {
-        displayElement.innerHTML += `<span id="word-${index}" class="word">${word}</span>`;
+    const display = document.getElementById('display');
+    const micBtn = document.getElementById('micBtn');
+    
+    // توليد الكلمات في الصفحة
+    targetWords.forEach((w, i) => {
+        display.innerHTML += `<span id="w-${i}" class="word">${w}</span> `;
     });
 
-    let currentWordIndex = 0;
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = 'ar-SA';
-    recognition.interimResults = true;
-    recognition.continuous = true;
+    let recognition;
+    if ('webkitSpeechRecognition' in window) {
+        recognition = new webkitSpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'ar-SA';
 
-    document.getElementById('startBtn').onclick = function() {
-        if (this.classList.contains('active')) {
+        recognition.onresult = (event) => {
+            let fullTranscript = "";
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                fullTranscript += event.results[i][0].transcript;
+            }
+            analyzeSpeech(fullTranscript.trim());
+        };
+    }
+
+    function analyzeSpeech(transcript) {
+        const spokenWords = transcript.split(" ");
+        
+        targetWords.forEach((original, index) => {
+            const wordEl = document.getElementById(`w-${index}`);
+            
+            // تنظيف الكلمات من التشكيل للمقارنة العادلة
+            const cleanOriginal = original.replace(/[\u064B-\u065F]/g, "");
+            
+            // البحث عن الكلمة المنطوقة في قائمة الكلمات التي قيلت
+            let found = spokenWords.some(spoken => {
+                const cleanSpoken = spoken.replace(/[\u064B-\u065F]/g, "");
+                // استخدام منطق المكتبة لحساب المسافة بين الكلمتين
+                const diff = dmp.diff_main(cleanOriginal, cleanSpoken);
+                const distance = dmp.diff_levenshtein(diff);
+                return distance <= 1; // السماح بخطأ حرف واحد فقط (مثل واو العطف أو خطأ بسيط)
+            });
+
+            if (found) {
+                wordEl.classList.add('correct');
+                wordEl.classList.remove('wrong');
+            } else {
+                // إذا نطق المستخدم كلمات أكثر من موقع الكلمة الحالي ولم يأتِ بالكلمة الصحيحة
+                if (spokenWords.length > index + 1 && !wordEl.classList.contains('correct')) {
+                    wordEl.classList.add('wrong');
+                }
+            }
+        });
+    }
+
+    micBtn.onclick = () => {
+        if (micBtn.classList.contains('recording')) {
             recognition.stop();
-            this.classList.remove('active');
+            micBtn.classList.remove('recording');
         } else {
             recognition.start();
-            this.classList.add('active');
-            currentWordIndex = 0;
-            resetColors();
+            micBtn.classList.add('recording');
+            document.querySelectorAll('.word').forEach(w => w.className = 'word');
         }
     };
-
-    recognition.onresult = (event) => {
-        let lastTranscript = event.results[event.results.length - 1][0].transcript.trim().split(" ");
-        let heardWord = lastTranscript[lastTranscript.length - 1]; // أخذ آخر كلمة نطقها المستخدم
-
-        compareWord(heardWord);
-    };
-
-    function compareWord(heard) {
-        if (currentWordIndex >= wordsArray.length) return;
-
-        let targetWord = wordsArray[currentWordIndex];
-        let element = document.getElementById(`word-${currentWordIndex}`);
-
-        // تنظيف الكلمات من التشكيل للمقارنة بدقة (المنطق الأساسي للذكاء الاصطناعي)
-        let cleanHeard = heard.replace(/[\u064B-\u065F]/g, "");
-        let cleanTarget = targetWord.replace(/[\u064B-\u065F]/g, "");
-
-        if (cleanHeard === cleanTarget) {
-            element.className = 'word correct';
-            currentWordIndex++;
-        } else {
-            // إذا كانت الكلمة مختلفة، يتم تلوينها بالأحمر
-            element.className = 'word wrong';
-            // ننتظر الكلمة التالية ليصحح نفسه
-        }
-    }
-
-    function resetColors() {
-        document.querySelectorAll('.word').forEach(el => el.className = 'word');
-    }
 </script>
+
 </body>
 </html>
