@@ -3,50 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>مصحح التلاوة الذكي</title>
+    <title>مصحح التلاوة المطور</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Amiri&family=Tajawal:wght@500;700&display=swap');
-        body { font-family: 'Tajawal', sans-serif; background: #ffffff; }
-        .quran-font { font-family: 'Amiri', serif; line-height: 2.8; text-align: center; }
+        body { font-family: 'Tajawal', sans-serif; background: #ffffff; color: #000000; }
+        .quran-font { font-family: 'Amiri', serif; line-height: 2.8; text-align: center; color: #000000; }
         .v-hide { filter: blur(12px); opacity: 0.1; transition: 0.8s; display: inline-block; margin: 5px; }
-        .v-show { filter: blur(0); opacity: 1; color: #1e293b; font-weight: bold; }
-        .word-correct { color: #10b981; font-weight: bold; }
-        .word-wrong { color: #ef4444; border-bottom: 2px dashed #ef4444; }
+        .v-show { filter: blur(0); opacity: 1; font-weight: bold; }
+        /* تنسيق الألوان الجديد */
+        .word-correct { color: #000000; font-weight: bold; } /* الكتابة الصحيحة بالأسود */
+        .word-wrong { color: #ff0000; font-weight: bold; text-decoration: underline; } /* الخطأ بالأحمر */
+        .verse-num { color: #059669; font-size: 0.7em; margin: 0 8px; font-family: sans-serif; }
         .mic-active { animation: pulse 1.2s infinite; background: #ef4444 !important; }
-        @keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { transform: scale(1); } }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
 
-    <header class="p-4 shadow-sm border-b flex justify-between items-center bg-white">
+    <header class="p-4 shadow-sm border-b flex justify-between items-center bg-white z-50">
         <button onclick="document.getElementById('menu').classList.remove('hidden')" class="text-emerald-700 text-2xl"><i class="fas fa-bars"></i></button>
         <h1 id="sName" class="font-bold text-emerald-800">اختر سورة</h1>
         <div class="w-8"></div>
     </header>
 
-    <main id="qBox" class="flex-1 overflow-y-auto p-6 quran-font text-3xl">
-        <p class="text-gray-400 text-lg mt-20">افتح القائمة لاختيار سورة</p>
-    </main>
-
-    <footer class="p-6 border-t bg-gray-50 flex flex-col items-center gap-4">
-        <div id="dictationArea" class="text-center min-h-[40px] w-full px-4 text-xl border-b border-emerald-100 text-gray-600 italic">
+    <div id="dictationWrapper" class="p-4 bg-gray-50 border-b min-h-[60px] flex items-center justify-center">
+        <div id="dictationArea" class="text-center text-xl italic text-gray-500">
             بانتظار صوتك...
         </div>
+    </div>
+
+    <main id="qBox" class="flex-1 overflow-y-auto p-6 quran-font text-3xl">
+        <p class="text-gray-300 mt-10">افتح القائمة واختبر حفظك</p>
+    </main>
+
+    <footer class="p-6 border-t bg-white flex justify-center items-center gap-12">
+        <button onclick="controlAll('show')" class="text-gray-400 text-xl"><i class="fas fa-eye"></i></button>
         
-        <div class="flex items-center gap-10">
-            <button onclick="controlAll('show')" class="text-gray-400"><i class="fas fa-eye"></i></button>
-            <button id="micBtn" class="w-20 h-20 bg-emerald-500 rounded-full shadow-lg text-white text-3xl flex items-center justify-center">
-                <i id="micIcon" class="fas fa-microphone"></i>
-            </button>
-            <button onclick="controlAll('hide')" class="text-gray-400"><i class="fas fa-eye-slash"></i></button>
-        </div>
+        <button id="micBtn" class="w-20 h-20 bg-emerald-600 rounded-full shadow-xl text-white text-3xl flex items-center justify-center">
+            <i id="micIcon" class="fas fa-microphone"></i>
+        </button>
+        
+        <button onclick="controlAll('hide')" class="text-gray-400 text-xl"><i class="fas fa-eye-slash"></i></button>
     </footer>
 
     <div id="menu" class="fixed inset-0 bg-black/60 hidden z-[100] backdrop-blur-sm">
         <div class="absolute bottom-0 w-full h-3/4 bg-white rounded-t-3xl p-6 overflow-y-auto">
-            <h2 class="text-xl font-bold mb-4">فهرس السور</h2>
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 class="text-xl font-bold">الفهرس</h2>
+                <button onclick="document.getElementById('menu').classList.add('hidden')" class="text-2xl">&times;</button>
+            </div>
             <div id="sList"></div>
         </div>
     </div>
@@ -57,13 +64,12 @@
         let recognition;
         let isListening = false;
 
-        // تهيئة الميكروفون بشكل أقوى
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new Speech();
             recognition.lang = 'ar-SA';
-            recognition.continuous = true; // استمرار الاستماع حتى عند الصمت
-            recognition.interimResults = true; // إظهار النتائج فوراً قبل اكتمال الجملة
+            recognition.continuous = true;
+            recognition.interimResults = true;
 
             recognition.onstart = () => {
                 isListening = true;
@@ -72,8 +78,7 @@
             };
 
             recognition.onend = () => {
-                // إعادة تشغيل الميكروفون تلقائياً إذا انقطع وهو في حالة "الاستماع"
-                if (isListening) { recognition.start(); }
+                if (isListening) recognition.start();
                 else {
                     document.getElementById('micBtn').classList.remove('mic-active');
                     document.getElementById('micIcon').className = "fas fa-microphone";
@@ -86,24 +91,18 @@
                     liveText += event.results[i][0].transcript;
                 }
                 
-                // عرض الإملاء فوراً للمستخدم
                 const dictation = document.getElementById('dictationArea');
-                
                 const clean = (t) => t.replace(/[\u064B-\u065F]/g, "").replace(/[إأآا]/g, "ا").replace(/ة/g, "ه").trim();
                 
                 if (ayahs[index]) {
                     const target = clean(ayahs[index].text);
                     const heard = clean(liveText);
 
-                    // تلوين ذكي
                     if (target.includes(heard)) {
                         dictation.innerHTML = `<span class="word-correct">${liveText}</span>`;
-                        // إذا نطق 60% من الآية تظهر الآية كاملة
-                        if (heard.length > target.length * 0.6) {
+                        if (heard.length > target.length * 0.5) {
                             document.getElementById(`v-${index}`).className = "v-show";
                             index++;
-                            // مسح النص لبدء الآية التالية
-                            setTimeout(() => { if(isListening) dictation.innerText = "أكمل الآية التالية..."; }, 1000);
                         }
                     } else {
                         dictation.innerHTML = `<span class="word-wrong">${liveText}</span>`;
@@ -118,7 +117,7 @@
             const list = document.getElementById('sList');
             data.data.forEach(s => {
                 const d = document.createElement('div');
-                d.className = "p-4 border-b active:bg-emerald-50";
+                d.className = "p-4 border-b active:bg-emerald-50 cursor-pointer";
                 d.onclick = () => loadSurah(s.number, s.name);
                 d.innerHTML = `${s.number}. ${s.name}`;
                 list.appendChild(d);
@@ -134,7 +133,10 @@
             const data = await res.json();
             ayahs = data.data.ayahs;
             index = 0;
-            box.innerHTML = ayahs.map((a, i) => `<span id="v-${i}" class="v-hide">${a.text} <small>(${a.numberInSurah})</small></span>`).join(' ');
+            // إضافة ترقيم الآيات بين الآيات
+            box.innerHTML = ayahs.map((a, i) => 
+                `<span id="v-${i}" class="v-hide">${a.text} <span class="verse-num">﴿${a.numberInSurah}﴾</span></span>`
+            ).join(' ');
         }
 
         function controlAll(t) {
@@ -144,7 +146,7 @@
 
         document.getElementById('micBtn').onclick = () => {
             if (!isListening) {
-                recognition.start();
+                navigator.mediaDevices.getUserMedia({ audio: true }).then(() => recognition.start());
             } else {
                 isListening = false;
                 recognition.stop();
@@ -154,4 +156,4 @@
         window.onload = init;
     </script>
 </body>
-        </html>
+</html>
