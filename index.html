@@ -3,198 +3,289 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>مصحح التلاوة الاحترافي</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Amiri&family=Tajawal:wght@500;700&display=swap');
-        body { font-family: 'Tajawal', sans-serif; background: #ffffff; margin: 0; overflow: hidden; }
         
-        /* جعل منطقة الكتابة في المنتصف تماماً */
-        .display-center {
+        body { font-family: 'Tajawal', sans-serif; background: #fdfdfd; color: #333; margin: 0; overflow: hidden; }
+        
+        /* تنسيق منطقة النص القرآني */
+        .quran-container {
+            font-family: 'Amiri', serif;
+            line-height: 3;
+            text-align: center;
+            padding: 30px;
+            height: 75vh;
+            overflow-y: auto;
+            direction: rtl;
+        }
+
+        /* الكلمة عندما تكون مخفية (باهتة جداً ومغبشة) - مثل التطبيق الهدف */
+        .q-word {
+            display: inline-block;
+            margin: 0 4px;
+            font-size: 2.2rem;
+            color: #e0e0e0; /* لون باهت جداً */
+            filter: blur(8px); /* تغبيش عالي */
+            transition: all 0.6s ease; /* تأثير ظهور ناعم */
+            position: relative;
+        }
+
+        /* الكلمة عند نطقها صحيحة (تصبح سوداء وواضحة) */
+        .q-word.revealed {
+            color: #000000;
+            filter: blur(0);
+            font-weight: bold;
+        }
+
+        /* تنسيق رقم الآية الزخرفي */
+        .ayah-num {
+            font-family: sans-serif;
+            font-size: 0.8em;
+            color: #10b981;
+            margin: 0 10px;
+            vertical-align: middle;
+        }
+
+        /* شريط التحكم السفلي */
+        .footer-controls {
+            height: 25vh;
+            background: #ffffff;
+            border-top: 1px solid #eaeaea;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: 50vh; /* تأخذ نصف الشاشة العلوي */
-            text-align: center;
+            gap: 15px;
             padding: 20px;
-            background-color: #f9fafb;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.03);
         }
 
-        #liveText {
-            font-size: 2rem;
-            line-height: 1.6;
-            transition: all 0.3s ease;
-            min-height: 3rem;
-        }
-
-        .correct-word { color: #000000; font-weight: bold; }
-        .wrong-word { color: #ff0000 !important; text-decoration: underline; font-weight: bold; }
-        
-        .quran-view {
-            height: 30vh;
-            overflow-y: auto;
-            font-family: 'Amiri', serif;
-            font-size: 1.8rem;
-            text-align: center;
-            padding: 15px;
-            border-top: 2px solid #eee;
-        }
-
-        .v-hide { filter: blur(8px); opacity: 0.2; display: inline-block; margin: 5px; }
-        .v-show { filter: blur(0); opacity: 1; color: #059669; font-weight: bold; }
-        
-        .footer-controls {
-            height: 20vh;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            background: white;
-            border-top: 1px solid #eee;
+        /* مساحة صغيرة لعرض الكلام الحالي للتأكد من الميكروفون */
+        #interimReport {
+            font-size: 1rem;
+            color: #999;
+            italic;
+            min-height: 1.2rem;
         }
 
         .mic-btn {
-            width: 80px;
-            height: 80px;
+            width: 90px;
+            height: 90px;
             border-radius: 50%;
+            border: none;
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2rem;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            font-size: 2.5rem;
             transition: 0.3s;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
         }
-        .mic-on { background-color: #ef4444; color: white; animation: pulse 1.5s infinite; }
+
+        .mic-on { background-color: #ef4444; color: white; animation: mic-pulse 1.5s infinite; }
         .mic-off { background-color: #10b981; color: white; }
 
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        @keyframes mic-pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
     </style>
 </head>
 <body class="flex flex-col h-screen">
 
-    <div class="display-center">
-        <div id="liveText" class="text-gray-400">ابدأ القراءة ليظهر التصحيح هنا...</div>
-    </div>
+    <header class="p-4 bg-white shadow-sm border-b flex justify-between items-center z-50">
+        <button onclick="document.getElementById('menu').classList.remove('hidden')" class="text-emerald-700 text-2xl"><i class="fas fa-bars"></i></button>
+        <h1 id="sName" class="font-bold text-emerald-800 text-lg">اختر سورة</h1>
+        <div class="w-8"></div>
+    </header>
 
-    <div id="qBox" class="quran-view text-gray-400">
-        الرجاء اختيار سورة من القائمة
-    </div>
+    <main id="qBox" class="quran-container flex-1">
+        <p class="text-gray-300 mt-20 text-center quran-font">افتح القائمة واختبر حفظك</p>
+    </main>
 
     <footer class="footer-controls">
-        <button onclick="showMenu()" class="bg-gray-100 p-4 rounded-xl text-emerald-700 font-bold">القائمة</button>
-        <button id="micBtn" class="mic-btn mic-off">🎤</button>
-        <button onclick="location.reload()" class="bg-gray-100 p-4 rounded-xl text-gray-600">تحديث</button>
+        <div id="interimReport"></div> <div class="flex items-center gap-16">
+            <button onclick="controlAll('show')" class="text-gray-400 text-2xl"><i class="fas fa-eye"></i></button>
+            <button id="micBtn" class="mic-btn mic-off"><i class="fas fa-microphone"></i></button>
+            <button onclick="controlAll('hide')" class="text-gray-400 text-2xl"><i class="fas fa-eye-slash"></i></button>
+        </div>
     </footer>
 
-    <div id="menu" class="fixed inset-0 bg-black/50 hidden z-50 flex items-end">
-        <div class="bg-white w-full h-3/4 rounded-t-3xl p-6 overflow-y-auto">
-            <h2 class="text-xl font-bold mb-4 border-b pb-2">اختر السورة</h2>
-            <div id="sList" class="space-y-2"></div>
+    <div id="menu" class="fixed inset-0 bg-black/60 hidden z-[100] backdrop-blur-sm">
+        <div class="absolute bottom-0 w-full h-3/4 bg-white rounded-t-3xl p-6 overflow-y-auto">
+            <div class="flex justify-between items-center mb-5 border-b pb-3">
+                <h2 class="text-xl font-bold">فهرس السور</h2>
+                <button onclick="document.getElementById('menu').classList.add('hidden')" class="text-2xl">&times;</button>
+            </div>
+            <div id="sList" class="space-y-1"></div>
         </div>
     </div>
 
     <script>
-        let ayahs = [];
-        let index = 0;
+        let ayahsData = [];
+        let currentAyahIdx = 0;
+        let currentWordIdx = 0;
+        let ayahWords = [];
+        let rec;
         let isListening = false;
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        const rec = new SpeechRecognition();
 
-        rec.lang = 'ar-SA';
-        rec.continuous = true;
-        rec.interimResults = true;
+        // 1. تهيئة التعرف على الكلام
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+            rec = new Speech();
+            rec.lang = 'ar-SA';
+            rec.continuous = true;
+            rec.interimResults = true;
 
-        // وظيفة تنظيف النص (إزالة التشكيل والهمزات للمقارنة العادلة)
-        function cleanText(text) {
-            return text.replace(/[\u064B-\u065F]/g, "")
-                       .replace(/[إأآا]/g, "ا")
-                       .replace(/ة/g, "ه")
+            rec.onstart = () => {
+                isListening = true;
+                document.getElementById('micBtn').className = "mic-btn mic-on";
+            };
+
+            rec.onend = () => {
+                if (isListening) rec.start(); // إعادة التشغيل التلقائي عند الانقطاع
+                else document.getElementById('micBtn').className = "mic-btn mic-off";
+            };
+
+            rec.onresult = (event) => {
+                let interimTranscript = "";
+                let finalTranscript = "";
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+
+                // عرض الكلام المؤقت للتاكد من عمل الميكروفون
+                document.getElementById('interimReport').innerText = interimTranscript;
+
+                // معالجة النص النهائي للمقارنة
+                if (finalTranscript !== "") {
+                    checkWords(finalTranscript);
+                }
+            };
+        }
+
+        // دالة تنظيف النص للمقارنة العادلة (إزالة التشكيل، الهمزات، التاء المربوطة)
+        function clean(text) {
+            return text.replace(/[\u064B-\u065F]/g, "") // إزالة التشكيل
+                       .replace(/[إأآا]/g, "ا")       // توحيد الألف
+                       .replace(/ة/g, "ه")            // توحيد التاء المربوطة
                        .trim();
         }
 
-        rec.onresult = (event) => {
-            let transcript = "";
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                transcript += event.results[i][0].transcript;
-            }
+        // دالة التحقق من الكلمات (الذكاء الاصطناعي للتصحيح)
+        function checkWords(heardText) {
+            if (ayahWords.length === 0) return;
 
-            const liveArea = document.getElementById('liveText');
-            if (!ayahs[index]) {
-                liveArea.innerHTML = `<span class="correct-word">${transcript}</span>`;
-                return;
-            }
-
-            const currentAyah = cleanText(ayahs[index].text);
-            const heardWords = transcript.split(" ");
-            const targetWords = ayahs[index].text.split(" ");
-
-            let htmlOutput = "";
-            let isMatch = true;
-
-            // منطق المقارنة اللحظية كلمة بكلمة
-            heardWords.forEach((word, i) => {
-                let cleanWord = cleanText(word);
-                // نبحث إذا كانت الكلمة موجودة في نص الآية الحالي
-                if (currentAyah.includes(cleanWord)) {
-                    htmlOutput += `<span class="correct-word">${word} </span>`;
-                } else {
-                    htmlOutput += `<span class="wrong-word">${word} </span>`;
-                    isMatch = false;
+            const heardWords = clean(heardText).split(" ");
+            
+            heardWords.forEach(heardWord => {
+                // إذا كانت الكلمة الحالية التي ننتظرها تطابق ما قاله المستخدم
+                if (currentWordIdx < ayahWords.length) {
+                    const targetWordClean = clean(ayahWords[currentWordIdx]);
+                    
+                    // مقارنة ذكية: هل الكلمة المسموعة هي نفس الكلمة المطلوبة؟
+                    if (targetWordClean === heardWord) {
+                        // إظهار الكلمة في مكانها الصحيح
+                        const wordSpan = document.getElementById(`a-${currentAyahIdx}-w-${currentWordIdx}`);
+                        if (wordSpan) {
+                            wordSpan.classList.add('revealed');
+                        }
+                        currentWordIdx++;
+                    }
                 }
             });
 
-            liveArea.innerHTML = htmlOutput;
-
-            // إذا أكمل معظم الآية صح، يفتحها في الأسفل وينتقل للآية التالية
-            if (cleanText(transcript).length > currentAyah.length * 0.7) {
-                document.getElementById(`v-${index}`).className = "v-show";
-                index++;
-                // تفريغ المساحة للآية الجديدة بعد مهلة قصيرة
-                setTimeout(() => { if(isMatch) liveArea.innerHTML = "..."; }, 2000);
+            // إذا انتهى من كل كلمات الآية، ننتقل للآية التالية
+            if (currentWordIdx >= ayahWords.length) {
+                // تلوين رقم الآية للدلالة على الإتمام
+                document.getElementById(`ayah-num-${currentAyahIdx}`).style.color = "#000";
+                
+                currentAyahIdx++;
+                currentWordIdx = 0;
+                prepareNextAyah();
             }
-        };
+        }
 
-        rec.onend = () => { if(isListening) rec.start(); };
-
-        document.getElementById('micBtn').onclick = () => {
-            const btn = document.getElementById('micBtn');
-            if (!isListening) {
-                isListening = true;
-                rec.start();
-                btn.className = "mic-btn mic-on";
+        // تحضير كلمات الآية التالية للمقارنة
+        function prepareNextAyah() {
+            if (ayahsData[currentAyahIdx]) {
+                // تقسيم الآية إلى كلمات والاحتفاظ بالنص الأصلي
+                ayahWords = ayahsData[currentAyahIdx].text.split(" ");
             } else {
-                isListening = false;
-                rec.stop();
-                btn.className = "mic-btn mic-off";
+                ayahWords = []; // انتهت السورة
+                document.getElementById('interimReport').innerText = "أحسنت! انتهت السورة.";
             }
-        };
+        }
 
-        async function loadData() {
+        // جلب قائمة السور
+        async function getSurahs() {
             const r = await fetch('https://api.alquran.cloud/v1/surah');
             const d = await r.json();
             const list = document.getElementById('sList');
             d.data.forEach(s => {
-                const item = document.createElement('div');
-                item.className = "p-4 border-b hover:bg-emerald-50 cursor-pointer rounded-lg";
-                item.innerHTML = `<span>${s.number}.</span> <strong>${s.name}</strong>`;
-                item.onclick = () => loadSurah(s.number);
-                list.appendChild(item);
+                const div = document.createElement('div');
+                div.className = "p-4 border-b active:bg-gray-100 cursor-pointer rounded-xl flex justify-between";
+                div.onclick = () => loadSurah(s.number, s.name);
+                div.innerHTML = `<span>${s.number}. ${s.name}</span> <span class="text-xs text-gray-400">${s.numberOfAyahs} آية</span>`;
+                list.appendChild(div);
             });
         }
 
-        async function loadSurah(id) {
+        // تحميل آيات السورة وتقسيمها إلى كلمات مغبشة
+        async function loadSurah(num, name) {
+            document.getElementById('sName').innerText = name;
             document.getElementById('menu').classList.add('hidden');
-            const r = await fetch(`https://api.alquran.cloud/v1/surah/${id}`);
+            const box = document.getElementById('qBox');
+            box.innerHTML = "<p class='text-emerald-600 mt-20'>جاري التحميل...</p>";
+            
+            const r = await fetch(`https://api.alquran.cloud/v1/surah/${num}`);
             const d = await r.json();
-            ayahs = d.data.ayahs;
-            index = 0;
-            document.getElementById('qBox').innerHTML = ayahs.map((a, i) => 
-                `<span id="v-${i}" class="v-hide">${a.text} ﴿${a.numberInSurah}﴾</span>`
-            ).join(' ');
-            document.getElementById('liveText').innerText = "تم تحميل السورة، ابدأ القراءة الآن..";
+            ayahsData = d.data.ayahs;
+            currentAyahIdx = 0;
+            currentWordIdx = 0;
+
+            // بناء واجهة "ملء الفراغات"
+            let html = ayahsData.map((ayah, aIdx) => {
+                // تقسيم كل آية إلى كلمات ووضع كل كلمة في span منفصل
+                const wordsHtml = ayah.text.split(" ").map((word, wIdx) => 
+                    `<span id="a-${aIdx}-w-${wIdx}" class="q-word">${word}</span>`
+                ).join("");
+                
+                // إضافة رقم الآية الزخرفي
+                return `${wordsHtml}<span id="ayah-num-${aIdx}" class="ayah-num">﴿${ayah.numberInSurah}﴾</span>`;
+            }).join(" ");
+
+            box.innerHTML = html;
+            prepareNextAyah();
         }
 
-        function showMenu() { document.getElementById('menu').classList.remove('hidden'); }
-        window.onload = loadData;
+        function controlAll(type) {
+            const words = document.querySelectorAll('.q-word');
+            words.forEach(w => type === 'show' ? w.classList.add('revealed') : w.classList.remove('revealed'));
+            if (type === 'hide') { currentAyahIdx = 0; currentWordIdx = 0; prepareNextAyah(); }
+        }
+
+        // تشغيل/إيقاف الميكروفون بضغطة زر
+        document.getElementById('micBtn').onclick = () => {
+            if (!isListening) {
+                // طلب الإذن صراحة قبل البدء لضمان عمله في WebView
+                navigator.mediaDevices.getUserMedia({ audio: true }).then(() => {
+                    rec.start();
+                }).catch(() => {
+                    alert("يرجى تفعيل إذن الميكروفون للتطبيق من إعدادات الهاتف");
+                });
+            } else {
+                isListening = false;
+                rec.stop();
+            }
+        };
+
+        window.onload = getSurahs;
     </script>
 </body>
 </html>
