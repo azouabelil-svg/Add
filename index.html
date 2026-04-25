@@ -3,189 +3,159 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مصحح التلاوة الذكي Pro</title>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/diff_match_patch/20121111/diff_match_patch.js"></script>
-    
+    <title>مصحح التلاوة العالمي</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&display=swap');
-
-        :root {
-            --primary: #128c7e;
-            --error: #d32f2f;
-            --bg: #fdfdfd;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Changa:wght@500&display=swap');
 
         body {
-            font-family: 'Amiri', serif;
-            background-color: #f0f2f5;
-            margin: 0;
+            background: linear-gradient(135deg, #1e3799, #0c2461);
+            color: white;
+            font-family: 'Changa', sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            margin: 0;
         }
 
-        .app-container {
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
             width: 90%;
-            max-width: 600px;
-            background: white;
+            max-width: 500px;
             padding: 30px;
-            border-radius: 25px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            border-radius: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
             text-align: center;
         }
 
-        h1 { color: var(--primary); font-size: 24px; margin-bottom: 20px; }
+        h2 { color: #1e3799; margin-bottom: 20px; }
 
-        .quran-box {
-            background: #fafafa;
-            padding: 20px;
-            border-radius: 15px;
-            min-height: 150px;
-            border: 1px solid #eee;
-            margin-bottom: 30px;
-            font-size: 28px;
+        .quran-display {
+            font-family: 'Amiri', serif;
+            font-size: 30px;
             line-height: 2;
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 20px;
+            border: 2px dashed #1e3799;
+            margin-bottom: 25px;
+            min-height: 120px;
         }
 
-        .word {
-            display: inline-block;
-            margin: 0 4px;
-            color: #ccc; /* لون رمادي قبل القراءة */
-            transition: 0.3s;
-        }
+        .word { display: inline-block; margin: 0 5px; color: #bbb; transition: 0.3s; }
+        .correct { color: #27ae60 !important; transform: scale(1.1); font-weight: bold; }
+        .wrong { color: #e74c3c !important; text-decoration: underline; }
 
-        .correct { color: var(--primary) !important; font-weight: bold; }
-        .wrong { color: var(--error) !important; text-decoration: underline; }
+        .mic-area { margin-top: 20px; }
 
-        .controls { position: relative; }
-
-        .mic-btn {
-            width: 80px;
-            height: 80px;
+        .btn-mic {
+            width: 90px;
+            height: 90px;
             border-radius: 50%;
             border: none;
-            background: var(--primary);
+            background: #1e3799;
             color: white;
-            font-size: 30px;
+            font-size: 35px;
             cursor: pointer;
-            box-shadow: 0 5px 15px rgba(18, 140, 126, 0.3);
-            transition: 0.3s;
+            transition: 0.4s;
+            box-shadow: 0 10px 20px rgba(30, 55, 153, 0.3);
         }
 
-        .mic-btn.active {
-            background: var(--error);
+        .btn-mic.recording {
+            background: #e74c3c;
             animation: pulse 1.5s infinite;
         }
 
         @keyframes pulse {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.4); }
-            70% { transform: scale(1.1); box-shadow: 0 0 0 20px rgba(211, 47, 47, 0); }
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 20px rgba(231, 76, 60, 0); }
             100% { transform: scale(1); }
         }
 
-        #status { margin-top: 15px; font-size: 14px; color: #666; }
+        #log { font-size: 14px; margin-top: 15px; color: #777; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div class="app-container">
-    <h1>مصحح التلاوة الذكي</h1>
+<div class="container">
+    <h2>المصحح الذكي الاحترافي</h2>
     
-    <div id="quranBox" class="quran-box">
+    <div id="quranContent" class="quran-display">
         </div>
 
-    <div class="controls">
-        <button id="micBtn" class="mic-btn">🎤</button>
-        <p id="status">اضغط على الميكروفون وابدأ القراءة</p>
+    <div class="mic-area">
+        <button id="mainBtn" class="btn-mic">🎤</button>
+        <p id="log">اضغط للبدء بالتصحيح</p>
     </div>
 </div>
 
 <script>
-    // النص المراد قراءته
-    const surahText = "الحمد لله رب العالمين الرحمن الرحيم مالك يوم الدين إياك نعبد وإياك نستعين";
-    const words = surahText.split(" ");
-    const quranBox = document.getElementById('quranBox');
-    const micBtn = document.getElementById('micBtn');
-    const statusText = document.getElementById('status');
-    const dmp = new diff_match_patch();
+    const ayahs = ["الحمد", "لله", "رب", "العالمين", "الرحمن", "الرحيم", "مالك", "يوم", "الدين"];
+    const content = document.getElementById('quranContent');
+    const mainBtn = document.getElementById('mainBtn');
+    const log = document.getElementById('log');
 
-    // بناء واجهة الكلمات
-    words.forEach((word, i) => {
-        const span = document.createElement('span');
-        span.innerText = word;
-        span.className = 'word';
-        span.id = 'word-' + i;
-        quranBox.appendChild(span);
+    // عرض الكلمات
+    ayahs.forEach((w, i) => {
+        content.innerHTML += `<span id="word-${i}" class="word">${w}</span> `;
     });
 
-    // إعدادات التعرف على الصوت
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
-    if (!SpeechRecognition) {
-        statusText.innerText = "متصفحك لا يدعم التعرف على الصوت. جرب جوجل كروم.";
-        micBtn.style.display = "none";
+    // إعداد الميكروفون
+    const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Speech) {
+        log.innerText = "المتصفح لا يدعم الصوت. استخدم Chrome";
     } else {
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'ar-SA';
-        recognition.continuous = true;
-        recognition.interimResults = true;
+        const rec = new Speech();
+        rec.lang = 'ar-SA';
+        rec.continuous = true;
+        rec.interimResults = true;
 
-        let isRecording = false;
+        let active = false;
 
-        micBtn.onclick = () => {
-            if (!isRecording) {
-                recognition.start();
-                micBtn.classList.add('active');
-                statusText.innerText = "جاري الاستماع... اقرأ الآن";
-                isRecording = true;
+        mainBtn.onclick = () => {
+            if (!active) {
+                rec.start();
+                mainBtn.classList.add('recording');
+                log.innerText = "جاري الاستماع... اقرأ الفاتحة";
+                active = true;
             } else {
-                recognition.stop();
-                micBtn.classList.remove('active');
-                statusText.innerText = "تم التوقف.";
-                isRecording = false;
+                rec.stop();
+                mainBtn.classList.remove('recording');
+                log.innerText = "توقف الاستماع";
+                active = false;
             }
         };
 
-        recognition.onresult = (event) => {
-            let transcript = "";
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                transcript += event.results[i][0].transcript;
+        rec.onresult = (event) => {
+            let result = "";
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                result += event.results[i][0].transcript;
             }
-            processText(transcript.trim());
+            compare(result.trim());
         };
 
-        recognition.onerror = (event) => {
-            console.error("خطأ في الميكروفون:", event.error);
-            statusText.innerText = "خطأ: " + event.error;
-            micBtn.classList.remove('active');
-            isRecording = false;
-        };
+        function compare(text) {
+            console.log("نطقت:", text);
+            ayahs.forEach((original, index) => {
+                const el = document.getElementById(`word-${index}`);
+                // تنظيف الكلمات (إزالة التشكيل)
+                const cleanOrig = original.replace(/[\u064B-\u065F]/g, "");
+                const cleanText = text.replace(/[\u064B-\u065F]/g, "");
 
-        function processText(spokenText) {
-            const spokenWords = spokenText.split(/\s+/);
-            
-            words.forEach((original, index) => {
-                const element = document.getElementById('word-' + index);
-                
-                // تنظيف الكلمات من التشكيل للمقارنة
-                const cleanOriginal = original.replace(/[\u064B-\u065F]/g, "");
-                
-                let isMatch = spokenWords.some(spoken => {
-                    const cleanSpoken = spoken.replace(/[\u064B-\u065F]/g, "");
-                    const diff = dmp.diff_main(cleanOriginal, cleanSpoken);
-                    return dmp.diff_levenshtein(diff) <= 1; // السماح بخطأ بسيط جداً
-                });
-
-                if (isMatch) {
-                    element.className = 'word correct';
-                } else if (spokenWords.length > index + 2 && !element.classList.contains('correct')) {
-                    // إذا تكلمت كثيراً ولم تنطق الكلمة الصحيحة بعد
-                    element.className = 'word wrong';
+                if (cleanText.includes(cleanOrig)) {
+                    el.className = 'word correct';
+                } else if (text.split(" ").length > index + 1 && !el.classList.contains('correct')) {
+                    el.className = 'word wrong';
                 }
             });
         }
+
+        rec.onerror = (e) => {
+            log.innerText = "خطأ: " + e.error;
+            mainBtn.classList.remove('recording');
+            active = false;
+        };
     }
 </script>
 
